@@ -8,7 +8,7 @@ const loading = ref(true)
 // 获取文章列表
 const fetchPosts = async () => {
   try {
-    const response = await api.get('/api/posts')
+    const response = await api.get('/api/posts/')
     posts.value = response.data
   } catch (error) {
     console.error('获取列表失败:', error)

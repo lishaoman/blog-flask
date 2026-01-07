@@ -23,6 +23,6 @@ services:
     container_name: blog_frontend
     restart: always
     ports:
-      - "8080:8080" # 将宿主机的 80 端口映射到容器的 80 端口 (Nginx)
+      - "8080:80" # 将宿主机的 80 端口映射到容器的 80 端口 (Nginx)
     depends_on:
       - backend # 确保后端先启动 (非强制依赖，但通常需要)

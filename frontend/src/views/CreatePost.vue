@@ -29,7 +29,7 @@ const submitPost = async () => {
 
     // 成功后，跳转回首页
     alert('发布成功！🎉')
-    router.push('/')
+    router.replace('/') // 替换当前历史记录，点“返回”会回到创建页之前的页面（比如列表页）
 
   } catch (error) {
     console.error(error)
