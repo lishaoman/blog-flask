@@ -1,7 +1,10 @@
 # backend/app/routes/posts.py
 from flask import Blueprint, request, jsonify
+from sqlalchemy import or_
+
 from app.extensions import db
 from app.models import Post
+
 
 # 创建一个名为 'posts' 的蓝图
 posts_bp = Blueprint('posts', __name__)
@@ -69,3 +72,25 @@ def delete_post(post_id):
     db.session.commit()
 
     return jsonify({'message': 'Post deleted successfully'})
+
+
+@posts_bp.route('/search', methods=['GET'])
+def search_posts():
+    # 1. 获取前端传来的搜索关键词
+    query_str = request.args.get('q', '').strip()
+
+    if not query_str:
+        return jsonify([])  # 如果关键词为空，直接返回空列表
+
+    # 2. 执行全文搜索逻辑 (标题或内容中包含关键词)
+    # 使用 or_ 实现多字段搜索，contains 实现模糊匹配
+    results = Post.query.filter(
+        or_(
+            Post.title.contains(query_str),
+            Post.content.contains(query_str)
+        )
+    ).order_by(Post.created_at.desc()).all()
+
+    # 3. 序列化并返回
+    # 这里的 to_dict() 是你之前模型中定义的方法
+    return jsonify([post.to_dict() for post in results])
