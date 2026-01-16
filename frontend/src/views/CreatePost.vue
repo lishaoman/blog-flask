@@ -8,6 +8,9 @@ const router = useRouter()
 // 定义表单数据
 const title = ref('')
 const content = ref('')
+// ✅ 新增：分类和标签的状态变量
+const category = ref('')
+const tagsInput = ref('')
 const isSubmitting = ref(false)
 
 // 提交表单
@@ -21,10 +24,19 @@ const submitPost = async () => {
   isSubmitting.value = true
 
   try {
+    // ✅ 处理标签逻辑：将字符串转换为数组
+    // 例如输入 "Vue, Python 学习" -> ["Vue", "Python", "学习"]
+    const tagsArray = tagsInput.value
+      .split(/[,，\s]+/) // 正则：匹配逗号(中英)或空格
+      .filter(tag => tag.trim() !== '') // 过滤掉空字符串
+
     // 发送 POST 请求到后端
     await api.post('/api/posts/', {
       title: title.value,
-      content: content.value
+      content: content.value,
+      // ✅ 新增字段发送给后端
+      category: category.value.trim(),
+      tags: tagsArray
     })
 
     // 成功后，跳转回首页
@@ -53,6 +65,26 @@ const submitPost = async () => {
           type="text"
           placeholder="请输入文章标题..."
           required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="category">分类</label>
+        <input
+          id="category"
+          v-model="category"
+          type="text"
+          placeholder="例如：技术笔记 (选填)"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="tags">标签</label>
+        <input
+          id="tags"
+          v-model="tagsInput"
+          type="text"
+          placeholder="例如：Vue Python (用空格或逗号分隔)"
         >
       </div>
 

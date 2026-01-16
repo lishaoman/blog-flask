@@ -3,8 +3,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import Post
-
+from app.models import Post, Category, Tag
 
 # 创建一个名为 'posts' 的蓝图
 posts_bp = Blueprint('posts', __name__)
@@ -14,12 +13,38 @@ posts_bp = Blueprint('posts', __name__)
 @posts_bp.route('/', methods=['POST'])
 def create_post():
     data = request.get_json()
+    title = data.get('title')
+    content = data.get('content')
+
+    # 获取前端传来的分类名和标签数组
+    category_name = data.get('category', '').strip()  # 例如 "技术"
+    tag_names = data.get('tags', [])  # 例如 ["Python", "Vue"]
 
     # 简单的验证
     if not data or not data.get('title') or not data.get('content'):
         return jsonify({'error': 'Title and content are required'}), 400
 
-    new_post = Post(title=data['title'], content=data['content'])
+    # 1. 处理分类 (如果存在则获取，不存在则创建)
+    category = None
+    if category_name:
+        category = Category.query.filter_by(name=category_name).first()
+        if not category:
+            category = Category(name=category_name)
+            db.session.add(category)
+
+    # 2. 处理标签 (如果存在则获取，不存在则创建)
+    tags_objects = []
+    for name in tag_names:
+        name = name.strip()
+        if name:
+            tag = Tag.query.filter_by(name=name).first()
+            if not tag:
+                tag = Tag(name=name)
+                db.session.add(tag)
+            tags_objects.append(tag)
+
+    # 3. 创建文章并关联
+    new_post = Post(title=data['title'], content=data['content'], category=category, tags=tags_objects)
 
     # 保存到数据库
     db.session.add(new_post)
