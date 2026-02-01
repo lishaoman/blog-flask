@@ -39,6 +39,27 @@ const router = createRouter({
       path: '/edit/:id',
       name: 'edit-post',
       component: EditPost
+    },
+    // === 分类和标签路由 ===
+    {
+      path: '/categories',
+      name: 'category-list',
+      component: () => import('../views/CategoryList.vue')
+    },
+    {
+      path: '/category/:id',
+      name: 'category-posts',
+      component: () => import('../views/CategoryPosts.vue')
+    },
+    {
+      path: '/tags',
+      name: 'tag-list',
+      component: () => import('../views/TagList.vue')
+    },
+    {
+      path: '/tag/:id',
+      name: 'tag-posts',
+      component: () => import('../views/TagPosts.vue')
     }
   ]
 })

@@ -6,7 +6,9 @@ import { RouterLink, RouterView } from 'vue-router'
   <header>
     <nav>
       <RouterLink to="/">首页</RouterLink> |
-      <RouterLink to="/about">关于</RouterLink>
+      <RouterLink to="/about">关于</RouterLink> |
+      <RouterLink to="/categories">📂 分类</RouterLink> |
+      <RouterLink to="/tags"># 标签</RouterLink>
       <RouterLink to="/create" class="write-btn">✍️ 写文章</RouterLink>
     </nav>
   </header>

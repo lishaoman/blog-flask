@@ -58,8 +58,22 @@ The project uses Flask-Migrate. Migrations are stored in `backend/migrations/ver
 All prefixed with `/api`:
 
 - `GET /api/ping` - Health check
-- `POST /api/posts/` - Create post (requires title, content)
+- `POST /api/posts/` - Create post (title, content, optional category string, optional tags array)
 - `GET /api/posts/` - Get all posts (ordered by created_at desc)
 - `GET /api/posts/<id>` - Get single post
-- `PUT /api/posts/<id>` - Update post
+- `PUT /api/posts/<id>` - Update post (title, content)
 - `DELETE /api/posts/<id>` - Delete post
+- `GET /api/posts/search?q=<query>` - Search posts by title or content (substring match)
+
+## Data Models
+
+- **Post**: id, title, content, category_id (FK), tags (M2M), created_at, updated_at
+- **Category**: id, name (unique), posts (backref)
+- **Tag**: id, name (unique), posts (backref via M2M)
+
+Category and tag creation is automatic on post submission - if a category/tag name doesn't exist, it's created.
+
+## Frontend Libraries
+
+- `marked` + `dompurify` + `github-markdown-css` - Markdown rendering with sanitization
+- `highlight.js` - Code syntax highlighting

@@ -25,6 +25,14 @@ def create_app(config_class=Config):
     # 访问路径将是 /api/posts
     app.register_blueprint(posts_bp, url_prefix='/api/posts')
 
+    # === 新增：注册分类蓝图 ===
+    from app.routes.categories import categories_bp
+    app.register_blueprint(categories_bp, url_prefix='/api/categories')
+
+    # === 新增：注册标签蓝图 ===
+    from app.routes.tags import tags_bp
+    app.register_blueprint(tags_bp, url_prefix='/api/tags')
+
     # 3. 导入模型 (确保 Flask-Migrate 能识别到模型变化)
     from app import models
 
