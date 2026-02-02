@@ -21,10 +21,15 @@ import { RouterLink, RouterView } from 'vue-router'
 <style scoped>
 /* 添加一点点基础样式让它看起来不那么简陋 */
 header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background-color: #f8f9fa;
   padding: 1rem;
   border-bottom: 1px solid #e9ecef;
-  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 nav a {
@@ -46,8 +51,8 @@ nav a.router-link-active {
 }
 
 main {
-  padding: 0 2rem;
-  max-width: 800px;
+  padding: 80px 2rem 2rem 2rem;
+  max-width: 1200px;
   margin: 0 auto;
 }
 </style>

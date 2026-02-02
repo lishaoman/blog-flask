@@ -155,6 +155,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.home {
+  max-width: 1040px; /* 800px * 1.3 = 1040px */
+  margin: 0 auto;
+}
+
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .post-card {
   border: 1px solid #e0e0e0;
