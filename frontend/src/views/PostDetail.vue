@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../api/index'
+import BackToTop from '../components/BackToTop.vue'
 
 // 引入 Markdown 解析器和清洗器
 import { marked } from 'marked'
@@ -214,6 +215,8 @@ const deletePost = async () => {
 
 <template>
   <div class="post-detail">
+    <BackToTop />
+
     <div v-if="loading" class="loading">⏳ 加载中...</div>
 
     <div v-else-if="error" class="error">❌ {{ error }}</div>

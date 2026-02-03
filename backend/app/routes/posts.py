@@ -53,14 +53,36 @@ def create_post():
     return jsonify(new_post.to_dict()), 201
 
 
-# 2. 获取文章列表 API
+# 2. 获取文章列表 API（支持分页）
 @posts_bp.route('/', methods=['GET'])
 def get_posts():
-    # 查询所有文章，按创建时间倒序排列 (最新的在最前)
-    posts = Post.query.order_by(Post.created_at.desc()).all()
+    # 获取分页参数，默认值：page=1, per_page=10
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
 
-    # 将对象列表转换为字典列表
-    return jsonify([post.to_dict() for post in posts])
+    # 限制每页最多100条
+    per_page = min(per_page, 100)
+
+    # 查询总数
+    total = Post.query.count()
+
+    # 分页查询
+    posts = Post.query.order_by(Post.created_at.desc()) \
+        .offset((page - 1) * per_page) \
+        .limit(per_page) \
+        .all()
+
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+
+    # 返回分页数据
+    return jsonify({
+        'posts': [post.to_dict() for post in posts],
+        'total': total,
+        'total_pages': total_pages,
+        'current_page': page,
+        'per_page': per_page
+    })
 
 
 # 3. 获取单篇文章详情 API
@@ -101,21 +123,48 @@ def delete_post(post_id):
 
 @posts_bp.route('/search', methods=['GET'])
 def search_posts():
-    # 1. 获取前端传来的搜索关键词
+    # 1. 获取前端传来的搜索关键词和分页参数
     query_str = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    # 限制每页最多100条
+    per_page = min(per_page, 100)
 
     if not query_str:
-        return jsonify([])  # 如果关键词为空，直接返回空列表
+        return jsonify({
+            'posts': [],
+            'total': 0,
+            'total_pages': 0,
+            'current_page': page,
+            'per_page': per_page
+        })
 
     # 2. 执行全文搜索逻辑 (标题或内容中包含关键词)
-    # 使用 or_ 实现多字段搜索，contains 实现模糊匹配
-    results = Post.query.filter(
+    query = Post.query.filter(
         or_(
             Post.title.contains(query_str),
             Post.content.contains(query_str)
         )
-    ).order_by(Post.created_at.desc()).all()
+    )
 
-    # 3. 序列化并返回
-    # 这里的 to_dict() 是你之前模型中定义的方法
-    return jsonify([post.to_dict() for post in results])
+    # 查询总数
+    total = query.count()
+
+    # 分页查询
+    results = query.order_by(Post.created_at.desc()) \
+        .offset((page - 1) * per_page) \
+        .limit(per_page) \
+        .all()
+
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+
+    # 3. 返回分页数据
+    return jsonify({
+        'posts': [post.to_dict() for post in results],
+        'total': total,
+        'total_pages': total_pages,
+        'current_page': page,
+        'per_page': per_page
+    })

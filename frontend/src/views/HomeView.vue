@@ -1,19 +1,50 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import api from '../api/index'
+import BackToTop from '../components/BackToTop.vue'
 
 const posts = ref([])
 const loading = ref(true)
-// === 新增状态变量 ===
-const searchQuery = ref('') // 搜索关键词
 const isSearching = ref(false) // 是否处于搜索模式
+const searchQuery = ref('') // 搜索关键词
 
-// 获取文章列表
+// === 新增：分页相关状态 ===
+const currentPage = ref(1)
+const postsPerPage = ref(10) // 默认每页10条
+const totalPosts = ref(0)
+const totalPages = ref(0)
+
+// 可选的每页条数选项
+const perPageOptions = [5, 10, 15, 20, 30, 50]
+
+// 从 localStorage 读取用户设置的每页条数
+const loadPerPage = () => {
+  const saved = localStorage.getItem('postsPerPage')
+  if (saved) {
+    postsPerPage.value = parseInt(saved)
+  }
+}
+
+// 保存每页条数设置
+const savePerPage = (value) => {
+  postsPerPage.value = value
+  localStorage.setItem('postsPerPage', value.toString())
+  currentPage.value = 1 // 切换每页条数时重置到第一页
+  fetchPosts()
+}
+
+// 获取文章列表（支持分页）
 const fetchPosts = async () => {
   loading.value = true
   try {
-    const response = await api.get('/api/posts/')
-    posts.value = response.data
+    const params = {
+      page: currentPage.value,
+      per_page: postsPerPage.value
+    }
+    const response = await api.get('/api/posts/', { params })
+    posts.value = response.data.posts || response.data
+    totalPosts.value = response.data.total || posts.value.length
+    totalPages.value = response.data.total_pages || Math.ceil(totalPosts.value / postsPerPage.value)
     isSearching.value = false
   } catch (error) {
     console.error('获取列表失败:', error)
@@ -22,7 +53,7 @@ const fetchPosts = async () => {
   }
 }
 
-// === 新增搜索处理函数 ===
+// 搜索处理函数
 const handleSearch = async () => {
   const query = searchQuery.value.trim()
 
@@ -35,12 +66,21 @@ const handleSearch = async () => {
   loading.value = true
   isSearching.value = true
   try {
-    // 调用我们之前设计的后端搜索接口
-    const response = await api.get(`/api/posts/search?q=${encodeURIComponent(query)}`)
-    posts.value = response.data
+    // 搜索也支持分页
+    const params = {
+      q: query,
+      page: currentPage.value,
+      per_page: postsPerPage.value
+    }
+    const response = await api.get('/api/posts/search', { params })
+    posts.value = response.data.posts || response.data
+    totalPosts.value = response.data.total || posts.value.length
+    totalPages.value = response.data.total_pages || Math.ceil(totalPosts.value / postsPerPage.value)
   } catch (error) {
     console.error('搜索失败:', error)
-    posts.value = [] // 报错时清空列表
+    posts.value = []
+    totalPosts.value = 0
+    totalPages.value = 0
   } finally {
     loading.value = false
   }
@@ -49,6 +89,7 @@ const handleSearch = async () => {
 // === 新增清空函数 ===
 const clearSearch = () => {
   searchQuery.value = ''
+  currentPage.value = 1
   fetchPosts()
 }
 
@@ -58,8 +99,18 @@ let timer = null
 watch(searchQuery, (newVal) => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => {
+    currentPage.value = 1 // 搜索时重置到第一页
     handleSearch()
   }, 500)
+})
+
+// 页码变化时重新获取数据
+watch(currentPage, () => {
+  if (isSearching.value) {
+    handleSearch()
+  } else {
+    fetchPosts()
+  }
 })
 
 // === 新增：关键词高亮匹配函数 ===
@@ -95,16 +146,66 @@ const highlightMatcher = (text) => {
   }
 }
 
-onMounted(() => {
-  fetchPosts()
+// 分页操作函数
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const goToPrevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+const goToNextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+// 计算当前页显示的起始和结束序号
+const displayRange = computed(() => {
+  const start = (currentPage.value - 1) * postsPerPage.value + 1
+  const end = Math.min(start + postsPerPage.value - 1, totalPosts.value)
+  return { start, end }
 })
 
+// 计算要显示的页码列表（简化版，显示全部）
+const displayPageNumbers = computed(() => {
+  const pages = []
+  for (let i = 1; i <= totalPages.value; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+// 页码跳转输入框
+const jumpPage = ref(1)
+
+onMounted(() => {
+  loadPerPage()
+  fetchPosts()
+})
 </script>
 
 <template>
   <div class="home">
+    <BackToTop />
+
     <div class="header">
       <h1>📃 最新文章</h1>
+
+      <!-- 新增：每页条数设置 -->
+      <div class="per-page-selector">
+        <span class="label">每页显示：</span>
+        <select v-model="postsPerPage" @change="savePerPage(postsPerPage)" class="per-page-select">
+          <option v-for="opt in perPageOptions" :key="opt" :value="opt">
+            {{ opt }} 条
+          </option>
+        </select>
+      </div>
     </div>
 
     <div class="search-container">
@@ -118,7 +219,14 @@ onMounted(() => {
       <button v-if="searchQuery" @click="clearSearch" class="clear-button">清空</button>
     </div>
 
-    <h1>{{ isSearching ? '🔍 搜索结果' : '最新文章' }}</h1>
+    <h1>{{ isSearching ? '🔍 搜索结果' : '' }}</h1>
+
+    <!-- 新增：显示总数和分页信息 -->
+    <div v-if="!loading && totalPosts > 0" class="pagination-info">
+      共 <span class="count">{{ totalPosts }}</span> 篇文章，
+      显示第 <span class="count">{{ displayRange.start }}-{{ displayRange.end }}</span> 篇，
+      第 <span class="count">{{ currentPage }}</span> / {{ totalPages }} 页
+    </div>
 
     <div v-if="loading">加载中...</div>
 
@@ -151,6 +259,70 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 新增：分页控制栏 -->
+    <div v-if="totalPages > 1" class="pagination-bar">
+      <div class="pagination-controls">
+        <button
+          @click="goToPage(1)"
+          :disabled="currentPage === 1"
+          class="pagination-btn"
+        >
+          首页
+        </button>
+
+        <button
+          @click="goToPrevPage"
+          :disabled="currentPage === 1"
+          class="pagination-btn"
+        >
+          上一页
+        </button>
+
+        <!-- 页码列表 -->
+        <div class="page-numbers">
+          <button
+            v-for="page in displayPageNumbers"
+            :key="page"
+            @click="goToPage(page)"
+            :class="['page-number', { active: page === currentPage }]"
+          >
+            {{ page }}
+          </button>
+        </div>
+
+        <button
+          @click="goToNextPage"
+          :disabled="currentPage === totalPages"
+          class="pagination-btn"
+        >
+          下一页
+        </button>
+
+        <button
+          @click="goToPage(totalPages)"
+          :disabled="currentPage === totalPages"
+          class="pagination-btn"
+        >
+          末页
+        </button>
+      </div>
+
+      <!-- 页码跳转 -->
+      <div class="page-jump">
+        跳转到
+        <input
+          type="number"
+          v-model.number="jumpPage"
+          :min="1"
+          :max="totalPages"
+          class="jump-input"
+          @keyup.enter="goToPage(jumpPage)"
+        />
+        页
+        <button @click="goToPage(jumpPage)" class="jump-btn">确定</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -160,7 +332,36 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* 每页条数选择器 */
+.per-page-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.per-page-select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.per-page-select:hover {
+  border-color: #42b883;
+}
+
 .post-card {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -169,11 +370,13 @@ onMounted(() => {
   transition: transform 0.2s;
   background: white;
 }
+
 .post-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .post-card h2 { margin-top: 0; font-size: 1.5rem; }
 .post-card h2 a { text-decoration: none; color: #2c3e50; }
 .post-card h2 a:hover { color: #42b883; }
 .excerpt { color: #666; }
+
 .search-container {
   margin-bottom: 2rem;
   display: flex;
@@ -207,6 +410,123 @@ onMounted(() => {
   color: #666;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* 分页信息 */
+.pagination-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.pagination-info .count {
+  color: #42b883;
+  font-weight: bold;
+}
+
+/* 分页控制栏 */
+.pagination-bar {
+  margin-top: 2rem;
+  padding: 20px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #555;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #42b883;
+  color: white;
+  border-color: #42b883;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 4px;
+}
+
+.page-number {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #555;
+}
+
+.page-number:hover {
+  border-color: #42b883;
+  color: #42b883;
+}
+
+.page-number.active {
+  background-color: #42b883;
+  color: white;
+  border-color: #42b883;
+  font-weight: bold;
+}
+
+/* 页码跳转 */
+.page-jump {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.jump-input {
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.jump-btn {
+  padding: 6px 12px;
+  background-color: #42b883;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.jump-btn:hover {
+  background-color: #3aa876;
 }
 
 /* ✅ 新增：针对 v-html 生成的高亮标签进行深度选择 */
@@ -247,4 +567,9 @@ onMounted(() => {
   margin-right: 5px;
 }
 
+.no-data {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+}
 </style>
