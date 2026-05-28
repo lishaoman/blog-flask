@@ -21,7 +21,7 @@ def create_post():
     tag_names = data.get('tags', [])  # 例如 ["Python", "Vue"]
 
     # 简单的验证
-    if not data or not data.get('title') or not data.get('content'):
+    if not data or not title or not content:
         return jsonify({'error': 'Title and content are required'}), 400
 
     # 1. 处理分类 (如果存在则获取，不存在则创建)
@@ -44,7 +44,7 @@ def create_post():
             tags_objects.append(tag)
 
     # 3. 创建文章并关联
-    new_post = Post(title=data['title'], content=data['content'], category=category, tags=tags_objects)
+    new_post = Post(title=title, content=content, category=category, tags=tags_objects)
 
     # 保存到数据库
     db.session.add(new_post)
